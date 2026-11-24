@@ -20,11 +20,15 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, "entry.txt")
 
 def validate_entry(text: str) -> None:
     """Reject control characters and enforce 1-200 chars of UTF-8
-    non-whitespace text."""
+    non-whitespace text. The entry must be a single line: any newline
+    (U+000A) or carriage return (U+000D) inside the text is rejected."""
     if not isinstance(text, str):
         raise ValueError("entry must be a string")
-    # Control characters: C0 controls except tab/newline are never valid in
-    # an entry; DEL and C1 controls are also rejected.
+    if "\n" in text or "\r" in text:
+        raise ValueError("entry must be a single line (no newline or CR)")
+    # Control characters: C0 controls except tab are never valid in an
+    # entry (newline/CR are already rejected above); DEL and C1 controls
+    # are also rejected.
     for ch in text:
         code = ord(ch)
         if code < 0x20 and ch not in ("\t", "\n"):
@@ -47,7 +51,10 @@ def main() -> int:
         f.write(ENTRY)
     with open(OUTPUT_PATH, "rb") as f:
         data = f.read()
-    assert data == ENTRY.encode("utf-8"), "written bytes differ from entry"
+    if data != ENTRY.encode("utf-8"):
+        raise ValueError(
+            f"round-trip mismatch: {OUTPUT_PATH} differs from entry constant"
+        )
     print(f"wrote {OUTPUT_PATH}")
     print(f"chars: {len(ENTRY)}")
     print(f"bytes: {len(data)}")
